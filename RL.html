@@ -48,7 +48,7 @@
                 </div>
             </div>
             <div id="gameplay" style="display:none;">
-                <h2>Für welche Karte entscheidest Du dich?</h2>
+                <h2>Für welche Karte entscheide ich mich?</h2>
                 <div id="chosen-cards"></div>
                 <div id="feedback"></div>
             </div>
@@ -57,12 +57,12 @@
     <script src="script.js"></script>
 
     <div id="scale-popup">
-        <h2>Wie geht es Dir gerade?</h2>
+        <h2>Wie geht es mir gerade?</h2>
         <label>Stimmung (0 = nicht gut, 100 = sehr gut)</label>
         <input type="range" id="mood-scale" min="0" max="100" value="50">
         <span id="mood-value">50</span>
         
-        <h3>Wie aufgeregt bist Du gerade?</h3>
+        <h3>Wie aufgeregt bin ich gerade?</h3>
         <label>Aufgeregtheit (0 = gar nicht, 100 = sehr aufgeregt)</label>
         <input type="range" id="excitement-scale" min="0" max="100" value="50">
         <span id="excitement-value">50</span>
@@ -255,11 +255,39 @@ body {
     opacity: 0.5; /* Optional: Visually indicate the disabled state */
 }
 
-
+#speech-bubble {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 2px solid black;
+    padding: 10px 20px;
+    border-radius: 10px;
+    z-index: 1100;
+    font-weight: bold;
+    font-size: 80px;
+}
 
 </style>
 
 <script> 
+
+
+// Timer-Variablen
+let cardSelectionTimer;
+let continueQuestionTimer;
+let feedbackTimer;
+
+function showSpeechBubble(message) {
+    const bubble = document.createElement('div');
+    bubble.id = 'speech-bubble';
+    bubble.textContent = message;
+    document.body.appendChild(bubble);
+    setTimeout(() => {
+        bubble.remove();
+    }, 2000);
+}
 
 const instructionVideo = document.getElementById('instruction-video');
 const nextButton = document.getElementById('next-button');
@@ -311,7 +339,7 @@ const rewardImage = 'reward.png';
 const lossImage = 'loss.png';
 const rewardSound = new Audio('reward.mp3'); // Load reward sound
 const lossSound = new Audio('loss.mp3');     // Load loss sound
-const trials = 140;
+const trials = 144;
 const playerImages = ['player1.png', 'player2.png', 'player3.png', 'player4.png', 'player5.png', 'player6.png'];
 
   // Audio elements for player and card selection
@@ -337,6 +365,9 @@ let trialCounter = 0;
 let trialData = [];   // Collect all data here
 let selectedPlayer = null; 
 let selectedCards = [];
+let playerAudioFinished = false;
+let cardAudioFinished = false;
+
 
 // On load, let them pick a player
 document.addEventListener('DOMContentLoaded', () => {
@@ -348,13 +379,20 @@ document.addEventListener('DOMContentLoaded', () => {
       instructionSection.style.display = 'none';
       playerSelectionSection.style.display = 'block';
       displayPlayerSelection();
-      // Play the Spielerwahl audio when entering player selection
+
+      startGameButton.disabled=true;
+
+      // Play the Spielerwahl audio.
       if (spielerwahlAudio) {
         spielerwahlAudio.play().catch(err => {
           console.warn("Spielerwahl audio play error:", err);
         });
+        spielerwahlAudio.addEventListener('ended', () => {
+          playerAudioFinished = true;
+          startGameButton.disabled = false;  // Enable the button once audio is done.
+        });
       }
-    });
+  });
 
     // Event Listener for Start Game button
     startGameButton.addEventListener('click', startGame);
@@ -429,6 +467,7 @@ function startGame() {
     // Start the card selection process
     displayCardSelection();
 
+
  
 }
 
@@ -436,21 +475,37 @@ function startGame() {
 function displayCardSelection() {
       cardsContainer.innerHTML = '';
       selectedCards = [];
-      // Play the Kartenwahl audio when card selection is shown
-      if (kartenwahlAudio) {
-        kartenwahlAudio.play().catch(err => {
-          console.warn("Kartenwahl audio play error:", err);
-        });
+
+      cardAudiofinished= false;
+      cardsContainer.classList.add('disabled');
+
+       if (kartenwahlAudio) {
+          kartenwahlAudio.play().catch(err => {
+              console.warn("Kartenwahl audio play error:", err);
+          });
+          kartenwahlAudio.addEventListener('ended', () => {
+              cardAudioFinished = true;
+              cardsContainer.classList.remove('disabled'); // Allow card clicks.
+          });
       }
-      cardImages.forEach((card, index) => {
-        const img = document.createElement('img');
-        img.src = card;
-        img.alt = `Card ${index + 1}`;
-        img.classList.add('card');
-        img.addEventListener('click', () => selectCard(card, img));
-        cardsContainer.appendChild(img);
+
+    cardImages.forEach((card, index) => {
+          const img = document.createElement('img');
+          img.src = card;
+          img.alt = `Card ${index + 1}`;
+          img.classList.add('card');
+          
+          // Only allow selection if the card audio has finished.
+          img.addEventListener('click', () => {
+              if (!cardAudioFinished) {
+                  console.log("Card selection not allowed until audio finishes.");
+                  return;
+              }
+              selectCard(card, img);
+          });
+          cardsContainer.appendChild(img);
       });
-    }
+  }
 
 function selectCard(card, imgElement) {
     if (cardsContainer.classList.contains('disabled')) {
@@ -469,15 +524,13 @@ function selectCard(card, imgElement) {
         imgElement.classList.add('selected'); // Highlight visually
     }
 
-    // Proceed if exactly 2 cards are selected
-    if (selectedCards.length === 2) {
-        // Disable further card selection and prompt user feedback
-        cardsContainer.classList.add('disabled');
-        promptUserFeedback(); // Show feedback prompt
-    }
-}
-
-
+ // Once exactly 2 cards are selected, disable further clicks and ask the meta question.
+ if (selectedCards.length === 2) {
+          cardsContainer.classList.add('disabled');
+          // Instead of calling promptUserFeedback(), immediately ask if the user wants to continue.
+          askContinueQuestion();
+      }
+  }
 
 
 // Trials starten
@@ -491,8 +544,6 @@ function startTrials() {
         chosenCardsContainer.appendChild(img);
     });
 }
-
-
 
 // Kartenposition wechseln
 function swapCardPositions() {
@@ -510,42 +561,85 @@ function swapCardPositions() {
 function promptUserFeedback() {
     scalePopup.style.display = 'block'; // Skalen-Popup anzeigen
 }
+function resumeGameplay() {
+    chosenCardsContainer.classList.remove('disabled');
+    gamePaused = false;
+    cardSelection.style.display = 'none';
+    gameplay.style.display = 'block';
+    chosenCardsContainer.innerHTML = '';
+    selectedCards.forEach(card => {
+        const img = document.createElement('img');
+        img.src = card;
+        img.addEventListener('click', () => {
+            if (cardSelectionTimer) clearTimeout(cardSelectionTimer);
+            playTrial(card, img);
+        });
+        chosenCardsContainer.appendChild(img);
+    });
+    // Clear any previous timer
+    if (cardSelectionTimer) clearTimeout(cardSelectionTimer);
+    // Start a 5-second timer; if no card is clicked, show the speech bubble and then show the meta question.
+    cardSelectionTimer = setTimeout(() => {
+        chosenCardsContainer.classList.add('disabled');
+        showSpeechBubble("Zu langsam!");
+        setTimeout(() => {
+            // After bubble disappears, automatically show the next meta question.
+            askContinueQuestion();
+        }, 2000); // Delay matches the bubble duration (2000ms)
+    }, 5000);
+    console.log('Gameplay resumed. Ready for trial selection.');
+}
 
 
 let gamePaused = false; 
 
 function askContinueQuestion() {
+  clearCardAnimations();
     gamePaused = true;
-    // Disable card selection during the question
     chosenCardsContainer.classList.add('disabled');
-
     scalePopup.innerHTML = `
-        <h2>Möchtest du weiterspielen?</h2>
+        <h2>Möchte ich spielen?</h2>
         <button id="yes-button">Ja</button>
         <button id="no-button">Nein</button>
     `;
-    scalePopup.style.display = 'block'; // Show the question popup
-
-    // Event listener for "Ja"
+    scalePopup.style.display = 'block';
+    
+    if (continueQuestionTimer) clearTimeout(continueQuestionTimer);
+    continueQuestionTimer = setTimeout(() => {
+         showSpeechBubble("Zu langsam!");
+         // Hide the meta question popup after the bubble appears.
+         scalePopup.style.display = 'none';
+         trialData.push({
+             trial: trialCounter,
+             metaQuestion: "timeout"
+         });
+         // After bubble duration, present the next meta question.
+         setTimeout(() => {
+             askContinueQuestion();
+         }, 2000);
+    }, 8000);
+    
     document.getElementById('yes-button').onclick = () => {
-        scalePopup.style.display = 'none'; // Hide the popup
+        if (continueQuestionTimer) clearTimeout(continueQuestionTimer);
+        scalePopup.style.display = 'none';
         trialData.push({
             trial: trialCounter,
             metaQuestion: "Yes"
-        }); // Record the response
-        resumeGameplay(); // Continue the game
+        });
+        resumeGameplay();
     };
 
-    // Event listener for "Nein"
     document.getElementById('no-button').onclick = () => {
-        scalePopup.style.display = 'none'; // Hide the popup
+        if (continueQuestionTimer) clearTimeout(continueQuestionTimer);
+        scalePopup.style.display = 'none';
         trialData.push({
             trial: trialCounter,
             metaQuestion: "No"
-        }); // Record the response
-        handleNoResponse(); // Handle "No" response logic
+        });
+        handleNoResponse();
     };
 }
+
 
 
 // Add this function near your other utility functions:
@@ -609,24 +703,6 @@ function getRandomFeedbackInterval() {
     return Math.floor(Math.random() * 4) + 3; // Random number between 3 and 6
 }
 
-function resumeGameplay() {
-    chosenCardsContainer.classList.remove('disabled');
-    gamePaused = false;
-
-    // Display the chosen cards for trial selection
-    cardSelection.style.display = 'none';
-    gameplay.style.display = 'block';
-    chosenCardsContainer.innerHTML = '';
-    selectedCards.forEach(card => {
-        const img = document.createElement('img');
-        img.src = card;
-        img.addEventListener('click', () => playTrial(card, img));
-        chosenCardsContainer.appendChild(img);
-    });
-
-    console.log('Gameplay resumed. Ready for trial selection.');
-}
-
 function playTrial(card, imgElement) {
   trialCounter++;
   handleReversals();
@@ -678,9 +754,8 @@ function playTrial(card, imgElement) {
     } else {
       askContinueQuestion();
     }
-  }, 1000);
+  }, 3000);
 }
-
 
 // Function to send individual trial data to the server
 function saveTrialToCSV(trialDataEntry) {
@@ -698,7 +773,6 @@ function saveTrialToCSV(trialDataEntry) {
     });
 }
 
-
 function promptUserFeedback() {
     // Pause the game
     gamePaused = true;
@@ -706,12 +780,12 @@ function promptUserFeedback() {
 
     // Display the scale popup within the game container
     scalePopup.innerHTML = `
-        <h2>Wie geht es dir gerade?</h2>
+        <h2>Wie geht es mir und wie aufgeregt bin ich gerade?</h2>
         <label>Stimmung (-50 = sehr schlecht, 50 = sehr gut)</label>
         <input type="range" id="mood-scale" min="-50" max="50" value="0">
         <span id="mood-value">0</span>
 
-        <label>Aufgeregtheit (0 = gar nicht, 100 = sehr aufgeregt)</label>
+        <label>Aufgeregtheit (0 = gar nicht aufgeregt, 100 = sehr aufgeregt)</label>
         <input type="range" id="excitement-scale" min="0" max="100" value="50">
         <span id="excitement-value">50</span>
 
@@ -734,6 +808,14 @@ function promptUserFeedback() {
         excitementValue.textContent = excitementScale.value;
     });
 
+    if (feedbackTimer) clearTimeout(feedbackTimer);
+    feedbackTimer = setTimeout(() => {
+         showSpeechBubble("Zu langsam!");
+         scalePopup.style.display = 'none';
+         askContinueQuestion();
+    }, 10000);
+
+
     // Handle feedback submission
     document.getElementById('submit-scale').onclick = () => {
         const mood = moodScale.value;
@@ -752,8 +834,6 @@ function promptUserFeedback() {
         resumeGameplay(); // Proceed to trials
     };
 }
-
-
 
 
 // End game function remains unchanged
