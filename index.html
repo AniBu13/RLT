@@ -286,7 +286,7 @@ function showSpeechBubble(message) {
     document.body.appendChild(bubble);
     setTimeout(() => {
         bubble.remove();
-    }, 2000);
+    }, 1000);
 }
 
 const instructionVideo = document.getElementById('instruction-video');
@@ -630,7 +630,7 @@ function askContinueQuestion() {
          setTimeout(() => {
              askContinueQuestion();
          }, 2000);
-    }, 8000);
+    }, 5000);
     
     document.getElementById('yes-button').onclick = () => {
         if (continueQuestionTimer) clearTimeout(continueQuestionTimer);
@@ -826,7 +826,7 @@ function promptUserFeedback() {
          showSpeechBubble("Zu langsam!");
          scalePopup.style.display = 'none';
          askContinueQuestion();
-    }, 10000);
+    }, 7000);
 
 
     // Handle feedback submission
