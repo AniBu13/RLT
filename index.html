@@ -376,23 +376,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event Listener for "Weiter" button after instruction video
     nextButton.addEventListener('click', () => {
-      instructionSection.style.display = 'none';
-      playerSelectionSection.style.display = 'block';
-      displayPlayerSelection();
+  instructionSection.style.display = 'none';
+  playerSelectionSection.style.display = 'block';
+  displayPlayerSelection();
 
-      startGameButton.disabled=true;
+  startGameButton.disabled = true;
 
-      // Play the Spielerwahl audio.
-      if (spielerwahlAudio) {
-        spielerwahlAudio.play().catch(err => {
-          console.warn("Spielerwahl audio play error:", err);
-        });
-        spielerwahlAudio.addEventListener('ended', () => {
-          playerAudioFinished = true;
-          startGameButton.disabled = false;  // Enable the button once audio is done.
-        });
-      }
-  });
+  // Try to play audio
+  if (spielerwahlAudio) {
+    spielerwahlAudio.play()
+      .then(() => {
+        console.log("Spielerwahl audio is playing.");
+      })
+      .catch(err => {
+        console.warn("Spielerwahl audio could not play:", err);
+        // Fallback: enable button anyway
+        startGameButton.disabled = false;
+      });
+
+    spielerwahlAudio.addEventListener('ended', () => {
+      playerAudioFinished = true;
+      startGameButton.disabled = false;
+    });
+  } else {
+    // If no audio element found, enable the button anyway
+    startGameButton.disabled = false;
+  }
+});
 
     // Event Listener for Start Game button
     startGameButton.addEventListener('click', startGame);
