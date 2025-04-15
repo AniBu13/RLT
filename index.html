@@ -452,18 +452,21 @@ function displayPlayerSelection() {
 }
 
 function selectPlayer(imgElement) {
-    // Remove selection from all players
-    document.querySelectorAll('.player').forEach(img => img.classList.remove('selected'));
+  // Remove selection from all players
+  document.querySelectorAll('.player').forEach(img => img.classList.remove('selected'));
 
-    // Highlight the selected player
-    imgElement.classList.add('selected');
+  // Highlight the selected player
+  imgElement.classList.add('selected');
 
-    // Save the selected player index
-    selectedPlayer = imgElement.dataset.playerIndex;
+  // Save the selected player index
+  selectedPlayer = imgElement.dataset.playerIndex;
 
-    // Show the "Spiel starten" button
-    startGameButton.style.display = 'inline';
+  // Enable "Spiel starten" button right away
+  startGameButton.style.display = 'inline';
+  startGameButton.disabled = false;
 }
+
+
 function startGame() {
     if (!selectedPlayer) return;
 
@@ -483,39 +486,33 @@ function startGame() {
 
 
 function displayCardSelection() {
-      cardsContainer.innerHTML = '';
-      selectedCards = [];
+  cardsContainer.innerHTML = '';
+  selectedCards = [];
 
-      cardAudiofinished= false;
-      cardsContainer.classList.add('disabled');
+  cardAudioFinished = true; // Always allow clicking immediately
+  cardsContainer.classList.remove('disabled'); // Make sure clicks are allowed
 
-       if (kartenwahlAudio) {
-          kartenwahlAudio.play().catch(err => {
-              console.warn("Kartenwahl audio play error:", err);
-          });
-          kartenwahlAudio.addEventListener('ended', () => {
-              cardAudioFinished = true;
-              cardsContainer.classList.remove('disabled'); // Allow card clicks.
-          });
-      }
-
-    cardImages.forEach((card, index) => {
-          const img = document.createElement('img');
-          img.src = card;
-          img.alt = `Card ${index + 1}`;
-          img.classList.add('card');
-          
-          // Only allow selection if the card audio has finished.
-          img.addEventListener('click', () => {
-              if (!cardAudioFinished) {
-                  console.log("Card selection not allowed until audio finishes.");
-                  return;
-              }
-              selectCard(card, img);
-          });
-          cardsContainer.appendChild(img);
-      });
+  // Optionally still play the audio, but don't block interaction
+  if (kartenwahlAudio) {
+    kartenwahlAudio.play().catch(err => {
+      console.warn("Kartenwahl audio play error:", err);
+    });
   }
+
+  cardImages.forEach((card, index) => {
+    const img = document.createElement('img');
+    img.src = card;
+    img.alt = `Card ${index + 1}`;
+    img.classList.add('card');
+
+    img.addEventListener('click', () => {
+      selectCard(card, img);
+    });
+
+    cardsContainer.appendChild(img);
+  });
+}
+
 
 function selectCard(card, imgElement) {
     if (cardsContainer.classList.contains('disabled')) {
