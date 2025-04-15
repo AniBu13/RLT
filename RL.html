@@ -566,6 +566,12 @@ function resumeGameplay() {
     gamePaused = false;
     cardSelection.style.display = 'none';
     gameplay.style.display = 'block';
+
+    // Randomly switch sides
+    if (Math.random() < 0.5) {
+        selectedCards.reverse(); // Randomly reverse the card positions
+    }
+
     chosenCardsContainer.innerHTML = '';
     selectedCards.forEach(card => {
         const img = document.createElement('img');
@@ -576,19 +582,19 @@ function resumeGameplay() {
         });
         chosenCardsContainer.appendChild(img);
     });
-    // Clear any previous timer
+
     if (cardSelectionTimer) clearTimeout(cardSelectionTimer);
-    // Start a 5-second timer; if no card is clicked, show the speech bubble and then show the meta question.
     cardSelectionTimer = setTimeout(() => {
         chosenCardsContainer.classList.add('disabled');
         showSpeechBubble("Zu langsam!");
         setTimeout(() => {
-            // After bubble disappears, automatically show the next meta question.
             askContinueQuestion();
-        }, 2000); // Delay matches the bubble duration (2000ms)
+        }, 2000);
     }, 5000);
+
     console.log('Gameplay resumed. Ready for trial selection.');
 }
+
 
 
 let gamePaused = false; 
@@ -749,7 +755,7 @@ function playTrial(card, imgElement) {
     // Next steps (e.g., askContinueQuestion(), promptUserFeedback(), etc.)
     if (trialCounter === totalTrials) {
       endGame();
-    } else if (trialCounter % 12 === 0) {
+    } else if (trialCounter % 4 === 0) {
       promptUserFeedback();
     } else {
       askContinueQuestion();
